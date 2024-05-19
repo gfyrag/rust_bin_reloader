@@ -224,9 +224,9 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cc"
-version = "1.0.97"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "099a5357d84c4c61eb35fc8eafa9a79a902c2f76911e5747ced4e032edd8d9b4"
+checksum = "41c270e7540d725e65ac7f1b212ac8ce349719624d7bcff99f8e2e488e8cf03f"
 
 [[package]]
 name = "cfg-if"
@@ -663,23 +663,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pod_replacer"
-version = "0.1.0"
-dependencies = [
- "async-notify",
- "async-process",
- "clap",
- "fork",
- "futures",
- "go-parse-duration",
- "libc",
- "log",
- "notify",
- "simplelog",
- "tokio",
-]
-
-[[package]]
 name = "polling"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -734,6 +717,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "469052894dcb553421e483e4209ee581a45100d31b4018de03e5a7ad86374a7e"
 dependencies = [
  "bitflags 2.5.0",
+]
+
+[[package]]
+name = "rust_bin_reloader"
+version = "0.1.0"
+dependencies = [
+ "async-notify",
+ "async-process",
+ "clap",
+ "fork",
+ "futures",
+ "go-parse-duration",
+ "libc",
+ "log",
+ "notify",
+ "simplelog",
+ "tokio",
 ]
 
 [[package]]

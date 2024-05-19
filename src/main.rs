@@ -20,7 +20,7 @@ mod file_watcher;
 mod process_executor;
 
 #[derive(Parser, Debug)]
-#[command(name = "rpod", about, long_about = None)]
+#[command(name = "rust-bin-reloader", about, long_about = None)]
 struct Cli {
     #[arg(required = true, help = "Path to binary file")]
     path: String,
