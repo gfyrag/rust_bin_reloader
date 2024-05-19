@@ -1,3 +1,5 @@
+#![deny(unused_crate_dependencies)]
+
 use std::process;
 use std::sync::Arc;
 
