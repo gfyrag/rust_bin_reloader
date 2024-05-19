@@ -128,7 +128,7 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
             let file_watcher_receiver = file_watcher.watch(configuration.path.clone());
 
             match file_watcher_receiver {
-                Ok(mut v) => loop {
+                Ok(v) => loop {
                     match v.recv() {
                         Ok(_) => {}
                         Err(err) => panic!("{}", err.to_string()),
