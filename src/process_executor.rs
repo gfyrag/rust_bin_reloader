@@ -1,6 +1,6 @@
 use std::process::{Command, ExitStatus};
-use std::sync::{Arc, mpsc};
 use std::sync::mpsc::Sender;
+use std::sync::{mpsc, Arc};
 use std::thread::{sleep, spawn};
 use std::time::Duration;
 
@@ -20,7 +20,7 @@ static DEFAULT_RELOAD_DELAY: Duration = Duration::from_secs(3);
 
 pub struct ProcessExecutor<T> {
     configuration: ProcessConfiguration,
-    file_watcher: Arc<dyn FileWatcher<WatcherType=T>>,
+    file_watcher: Arc<dyn FileWatcher<WatcherType = T>>,
 }
 
 #[derive(Debug)]
@@ -34,7 +34,7 @@ enum Event {
 impl<T: Watch + 'static> ProcessExecutor<T> {
     pub(crate) fn new(
         configuration: ProcessConfiguration,
-        file_watcher: Arc<dyn FileWatcher<WatcherType=T>>,
+        file_watcher: Arc<dyn FileWatcher<WatcherType = T>>,
     ) -> Self {
         ProcessExecutor {
             configuration,

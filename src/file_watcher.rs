@@ -25,11 +25,11 @@ impl FileWatcher for NotifyFileWatcher {
         let sender = sender.clone();
         let mut watcher = notify::recommended_watcher(move |res| match res {
             Ok(_) => {
-                sender.send(()).map(|v| ()).expect("Send message failed!");
+                sender.send(()).expect("Send message failed!");
             }
             Err(e) => panic!("error while watching the file system: {:}", e),
         })
-            .expect("init watcher failed");
+        .expect("init watcher failed");
         watcher
             .watch(Path::new(&path), RecursiveMode::NonRecursive)
             .expect("starting watching binary failed");
@@ -43,6 +43,7 @@ pub(crate) trait Watch {
 }
 
 pub(crate) struct DefaultWatch {
+    #[allow(dead_code)] // Store to keep object alive
     watcher: RecommendedWatcher,
     receiver: Receiver<()>,
 }

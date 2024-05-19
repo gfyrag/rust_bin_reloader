@@ -1,5 +1,6 @@
-use clap::Parser;
 use std::time::Duration;
+
+use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[command(name = "rust-bin-reloader", about, long_about = None)]

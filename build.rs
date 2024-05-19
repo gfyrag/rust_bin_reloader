@@ -1,4 +1,3 @@
-use clap::CommandFactory;
 use crate::cli::Cli;
 
 #[path="src/cli.rs"]

@@ -1,24 +1,17 @@
-use process::{Command, ExitStatus};
-use std::path::Path;
 use std::process;
-use std::sync::{Arc, mpsc};
-use std::sync::mpsc::{Receiver, RecvError, Sender};
-use std::thread::{sleep, spawn};
-use std::time::Duration;
+use std::sync::Arc;
 
-use clap::{arg, Arg, Command as ClapCommand, Parser};
-use libc::{kill, pid_t, SIGTERM};
+use clap::Parser;
 use log::{error, info, LevelFilter};
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use simplelog::{ColorChoice, CombinedLogger, Config, TerminalMode, TermLogger};
-use cli::Cli;
 
-use file_watcher::{FileWatcher, NotifyFileWatcher, Watch};
+use cli::Cli;
+use file_watcher::NotifyFileWatcher;
 use process_executor::{ProcessConfiguration, ProcessExecutor};
 
+mod cli;
 mod file_watcher;
 mod process_executor;
-mod cli;
 
 fn init_logger() {
     CombinedLogger::init(vec![TermLogger::new(
