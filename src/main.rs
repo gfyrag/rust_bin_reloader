@@ -12,6 +12,9 @@ use libc::{kill, pid_t, SIGTERM};
 use log::{error, info, LevelFilter};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use simplelog::{ColorChoice, CombinedLogger, Config, TerminalMode, TermLogger};
+use file_watcher::{FileWatcher, NotifyFileWatcher, Watch};
+
+mod file_watcher;
 
 #[derive(Parser, Debug)]
 #[command(name = "rpod", about, long_about = None)]
@@ -202,62 +205,5 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
                 },
             }
         });
-    }
-}
-
-trait FileWatcher: Sync + Send {
-    type WatcherType;
-    fn watch(&self, path: String) -> Result<Self::WatcherType, notify::Error>;
-}
-
-struct NotifyFileWatcher;
-
-impl NotifyFileWatcher {
-    fn new() -> Self {
-        Self{}
-    }
-}
-
-impl FileWatcher for NotifyFileWatcher {
-    type WatcherType = DefaultWatch;
-
-    fn watch(&self, path: String) -> Result<DefaultWatch, notify::Error> {
-        let (sender, receiver) = mpsc::channel();
-        let sender = sender.clone();
-        let mut watcher = notify::recommended_watcher(
-            move |res| {
-                match res {
-                    Ok(_) => {
-                        sender
-                            .send(())
-                            .map(|v| ())
-                            .expect("Send message failed!");
-                    },
-                    Err(e) => panic!("error while watching the file system: {:}", e),
-                }
-            })?;
-        let _guard = watcher.watch(Path::new(&path), RecursiveMode::NonRecursive)?;
-        Ok(DefaultWatch::new(watcher, receiver))
-    }
-}
-
-trait Watch {
-    fn recv(&self) -> Result<(), RecvError>;
-}
-
-struct DefaultWatch {
-    watcher: RecommendedWatcher,
-    receiver: Receiver<()>
-}
-
-impl Watch for DefaultWatch {
-    fn recv(&self) -> Result<(), RecvError> {
-        self.receiver.recv()
-    }
-}
-
-impl DefaultWatch {
-    fn new(watcher: RecommendedWatcher, receiver: Receiver<()>) -> Self {
-        Self{ watcher, receiver }
     }
 }
