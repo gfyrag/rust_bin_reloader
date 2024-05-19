@@ -29,8 +29,7 @@ fn init_logger() {
         .unwrap();
 }
 
-fn main() {
-
+fn init_signals() {
     let mut signals = Signals::new(&[SIGINT, SIGTERM, SIGQUIT])
         .expect("Configuring signals");
 
@@ -40,9 +39,13 @@ fn main() {
             exit(1);
         }
     });
+}
+
+fn main() {
+    init_signals();
+    init_logger();
 
     let args = Cli::parse();
-    init_logger();
 
     info!("Starting...");
     let option = ProcessExecutor::new(
