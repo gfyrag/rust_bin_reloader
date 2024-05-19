@@ -6,12 +6,13 @@ use std::sync::mpsc::{Receiver, RecvError, Sender};
 use std::thread::{sleep, spawn};
 use std::time::Duration;
 
-use clap::{Arg, arg, Command as ClapCommand, Parser};
+use clap::{arg, Arg, Command as ClapCommand, Parser};
 use go_parse_duration::parse_duration as go_parse_duration;
 use libc::{kill, pid_t, SIGTERM};
 use log::{error, info, LevelFilter};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use simplelog::{ColorChoice, CombinedLogger, Config, TerminalMode, TermLogger};
+
 use file_watcher::{FileWatcher, NotifyFileWatcher, Watch};
 use process_executor::{ProcessConfiguration, ProcessExecutor};
 
@@ -25,15 +26,15 @@ struct Cli {
     path: String,
 
     #[arg(
-        short = 'd',
-        help = "Delay when restarting the binary after an unexpected exit",
-        default_value = "3s",
-        value_parser = parse_duration
+    short = 'd',
+    help = "Delay when restarting the binary after an unexpected exit",
+    default_value = "3s",
+    value_parser = parse_duration
     )]
     restart_delay: Duration,
 
     #[arg(last = true, help = "Additional arguments to pass to the binary")]
-    binary_args: Vec<String>
+    binary_args: Vec<String>,
 }
 
 fn parse_duration(v: &str) -> Result<Duration, String> {
@@ -44,11 +45,13 @@ fn parse_duration(v: &str) -> Result<Duration, String> {
 }
 
 fn init_logger() {
-    CombinedLogger::init(
-        vec![
-            TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-        ]
-    ).unwrap();
+    CombinedLogger::init(vec![TermLogger::new(
+        LevelFilter::Info,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )])
+        .unwrap();
 }
 
 fn main() {
@@ -62,8 +65,9 @@ fn main() {
             args: Some(args.binary_args),
             restart_delay: Some(args.restart_delay),
         },
-        Arc::new(NotifyFileWatcher::new())
-    ).start();
+        Arc::new(NotifyFileWatcher::new()),
+    )
+        .start();
     if option.is_some() {
         error!("{}", option.unwrap());
         process::exit(1);

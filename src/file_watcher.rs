@@ -1,7 +1,8 @@
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use std::sync::mpsc::{Receiver, RecvError};
-use std::sync::mpsc;
 use std::path::Path;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, RecvError};
+
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
 pub(crate) trait FileWatcher: Sync + Send {
     type WatcherType;
@@ -12,7 +13,7 @@ pub(crate) struct NotifyFileWatcher;
 
 impl NotifyFileWatcher {
     pub(crate) fn new() -> Self {
-        Self{}
+        Self {}
     }
 }
 
@@ -22,18 +23,12 @@ impl FileWatcher for NotifyFileWatcher {
     fn watch(&self, path: String) -> Result<DefaultWatch, notify::Error> {
         let (sender, receiver) = mpsc::channel();
         let sender = sender.clone();
-        let mut watcher = notify::recommended_watcher(
-            move |res| {
-                match res {
-                    Ok(_) => {
-                        sender
-                            .send(())
-                            .map(|v| ())
-                            .expect("Send message failed!");
-                    },
-                    Err(e) => panic!("error while watching the file system: {:}", e),
-                }
-            })?;
+        let mut watcher = notify::recommended_watcher(move |res| match res {
+            Ok(_) => {
+                sender.send(()).map(|v| ()).expect("Send message failed!");
+            }
+            Err(e) => panic!("error while watching the file system: {:}", e),
+        })?;
         let _guard = watcher.watch(Path::new(&path), RecursiveMode::NonRecursive)?;
         Ok(DefaultWatch::new(watcher, receiver))
     }
@@ -45,7 +40,7 @@ pub(crate) trait Watch {
 
 pub(crate) struct DefaultWatch {
     watcher: RecommendedWatcher,
-    receiver: Receiver<()>
+    receiver: Receiver<()>,
 }
 
 impl Watch for DefaultWatch {
@@ -56,6 +51,6 @@ impl Watch for DefaultWatch {
 
 impl DefaultWatch {
     fn new(watcher: RecommendedWatcher, receiver: Receiver<()>) -> Self {
-        Self{ watcher, receiver }
+        Self { watcher, receiver }
     }
 }
