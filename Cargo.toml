@@ -10,6 +10,7 @@ notify = "6.1.1"
 libc = "0.2.155"
 log = "0.4.21"
 simplelog = "0.12.2"
+signal-hook = "0.3.17"
 
 [build-dependencies]
 clap = { version = "4.5.4", features = ["cargo", "derive"] }

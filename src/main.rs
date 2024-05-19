@@ -1,10 +1,14 @@
 #![deny(unused_crate_dependencies)]
 
 use std::process;
+use std::process::exit;
 use std::sync::Arc;
+use std::thread::spawn;
 
 use clap::Parser;
-use log::{error, info, LevelFilter};
+use libc::{SIGINT, SIGQUIT, SIGTERM};
+use log::{debug, error, info, LevelFilter};
+use signal_hook::iterator::Signals;
 use simplelog::{ColorChoice, CombinedLogger, Config, TerminalMode, TermLogger};
 
 use cli::Cli;
@@ -26,6 +30,17 @@ fn init_logger() {
 }
 
 fn main() {
+
+    let mut signals = Signals::new(&[SIGINT, SIGTERM, SIGQUIT])
+        .expect("Configuring signals");
+
+    spawn(move || {
+        for sig in signals.forever() {
+            debug!("Received signal {:?}", sig);
+            exit(1);
+        }
+    });
+
     let args = Cli::parse();
     init_logger();
 
