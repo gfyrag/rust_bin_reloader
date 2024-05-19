@@ -5,7 +5,7 @@ use std::thread::{sleep, spawn};
 use std::time::Duration;
 
 use libc::{kill, pid_t, SIGTERM};
-use log::info;
+use log::{debug, info};
 
 use crate::file_watcher::{FileWatcher, Watch};
 
@@ -48,10 +48,9 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
         let mut pid = self.run_process(sender.clone());
         self.watch_file(sender.clone());
 
-        info!("Wait events");
+        debug!("Wait events");
         loop {
             let event = receiver.recv().unwrap();
-            info!("Got event");
             match event {
                 Event::BinaryChanged => {
                     info!("Binary file changed, kill sub command");
@@ -62,7 +61,7 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
                         let event = receiver.recv().unwrap();
                         match event {
                             Event::BinaryChanged => {
-                                info!("Binary file changed again");
+                                debug!("Binary file changed again");
                                 // Just waiting again
                             }
                             Event::ProcessExited(_) => {
@@ -81,16 +80,17 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
                     }
                 }
                 Event::ProcessExited(exit_status) => {
+                    let duration = configuration
+                        .restart_delay
+                        .unwrap_or_else(|| DEFAULT_RELOAD_DELAY);
                     info!(
-                        "Process unexpectedly terminated with status: {:?}",
-                        exit_status
+                        "Process unexpectedly terminated with status: {:?}, will wait for {}s",
+                        exit_status.code().unwrap(),
+                        duration.as_secs()
                     );
                     let sender = sender.clone();
                     spawn(move || {
-                        let duration = configuration
-                            .restart_delay
-                            .unwrap_or_else(|| DEFAULT_RELOAD_DELAY);
-                        info!("Wait {:?}", duration);
+                        debug!("Wait {:?}", duration);
                         sleep(duration);
                         sender.send(Event::TimeElapse).expect("Send event failed!");
                     });
@@ -111,13 +111,10 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
         let path = self.configuration.path.clone();
         let mut child = Command::new(&path).args(args).spawn().unwrap();
         let ret = child.id();
+        info!("Start new process");
         spawn(move || {
-            info!("Start process");
-            let exit_status = child.wait().unwrap();
-
-            info!("process ended");
             sender
-                .send(Event::ProcessExited(exit_status))
+                .send(Event::ProcessExited(child.wait().unwrap()))
                 .expect("Send event failed!");
         });
         ret as pid_t

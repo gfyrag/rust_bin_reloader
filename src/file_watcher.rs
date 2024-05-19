@@ -28,8 +28,12 @@ impl FileWatcher for NotifyFileWatcher {
                 sender.send(()).map(|v| ()).expect("Send message failed!");
             }
             Err(e) => panic!("error while watching the file system: {:}", e),
-        })?;
-        let _guard = watcher.watch(Path::new(&path), RecursiveMode::NonRecursive)?;
+        })
+            .expect("init watcher failed");
+        watcher
+            .watch(Path::new(&path), RecursiveMode::NonRecursive)
+            .expect("starting watching binary failed");
+
         Ok(DefaultWatch::new(watcher, receiver))
     }
 }
