@@ -1,0 +1,17 @@
+[package]
+name = "pod_replacer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-process = "2.2.2"
+clap = { version = "4.5.4", features = ["cargo"]}
+fork = "0.1.23"
+go-parse-duration = "0.1.1"
+notify = "6.1.1"
+tokio = { version = "1.37.0", features = ["full"] }
+futures = "0.1.31"
+async-notify = "0.3.0"
+libc = "0.2.155"
+log = "0.4.21"
+simplelog = "0.12.2"
