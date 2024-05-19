@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 async-process = "2.2.2"
-clap = { version = "4.5.4", features = ["cargo"]}
+clap = { version = "4.5.4", features = ["cargo", "derive"] }
 fork = "0.1.23"
 go-parse-duration = "0.1.1"
 notify = "6.1.1"
