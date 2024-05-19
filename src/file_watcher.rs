@@ -1,12 +1,14 @@
 use std::path::Path;
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, RecvError};
+use std::sync::mpsc::{Receiver};
+use std::thread::{sleep, spawn};
+use std::time::Duration;
+use log::error;
 
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{RecursiveMode, Watcher};
 
 pub(crate) trait FileWatcher: Sync + Send {
-    type WatcherType;
-    fn watch(&self, path: String) -> Result<Self::WatcherType, notify::Error>;
+    fn watch(&self, path: String) -> Result<Receiver<()>, notify::Error>;
 }
 
 pub(crate) struct NotifyFileWatcher;
@@ -18,9 +20,7 @@ impl NotifyFileWatcher {
 }
 
 impl FileWatcher for NotifyFileWatcher {
-    type WatcherType = DefaultWatch;
-
-    fn watch(&self, path: String) -> Result<DefaultWatch, notify::Error> {
+    fn watch(&self, path: String) -> Result<Receiver<()>, notify::Error> {
         let (sender, receiver) = mpsc::channel();
         let sender = sender.clone();
         let mut watcher = notify::recommended_watcher(move |res| match res {
@@ -30,32 +30,19 @@ impl FileWatcher for NotifyFileWatcher {
             Err(e) => panic!("error while watching the file system: {:}", e),
         })
         .expect("init watcher failed");
-        watcher
-            .watch(Path::new(&path), RecursiveMode::NonRecursive)
-            .expect("starting watching binary failed");
+        spawn(move || {
+            loop {
+                match watcher
+                    .watch(Path::new(&path), RecursiveMode::NonRecursive){
+                    Ok(_) => {}
+                    Err(err) => {
+                        error!("Error watching binary file: {}", err.to_string());
+                        sleep(Duration::from_secs(1));
+                    }
+                }
+            }
+        });
 
-        Ok(DefaultWatch::new(watcher, receiver))
-    }
-}
-
-pub(crate) trait Watch {
-    fn recv(&self) -> Result<(), RecvError>;
-}
-
-pub(crate) struct DefaultWatch {
-    #[allow(dead_code)] // Store to keep object alive
-    watcher: RecommendedWatcher,
-    receiver: Receiver<()>,
-}
-
-impl Watch for DefaultWatch {
-    fn recv(&self) -> Result<(), RecvError> {
-        self.receiver.recv()
-    }
-}
-
-impl DefaultWatch {
-    fn new(watcher: RecommendedWatcher, receiver: Receiver<()>) -> Self {
-        Self { watcher, receiver }
+        Ok(receiver)
     }
 }

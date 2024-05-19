@@ -7,7 +7,7 @@ use std::time::Duration;
 use libc::{kill, pid_t, SIGTERM};
 use log::{debug, info};
 
-use crate::file_watcher::{FileWatcher, Watch};
+use crate::file_watcher::{FileWatcher};
 
 #[derive(Clone)]
 pub struct ProcessConfiguration {
@@ -18,23 +18,24 @@ pub struct ProcessConfiguration {
 
 static DEFAULT_RELOAD_DELAY: Duration = Duration::from_secs(3);
 
-pub struct ProcessExecutor<T> {
+pub struct ProcessExecutor {
     configuration: ProcessConfiguration,
-    file_watcher: Arc<dyn FileWatcher<WatcherType = T>>,
+    file_watcher: Arc<dyn FileWatcher>,
 }
 
 #[derive(Debug)]
 enum Event {
     BinaryChanged,
+    ProcessStarted(pid_t),
     ProcessExited(ExitStatus),
-    TimeElapse,
+    DelayBeforeRestartElapsed,
     Error(String),
 }
 
-impl<T: Watch + 'static> ProcessExecutor<T> {
+impl ProcessExecutor {
     pub(crate) fn new(
         configuration: ProcessConfiguration,
-        file_watcher: Arc<dyn FileWatcher<WatcherType = T>>,
+        file_watcher: Arc<dyn FileWatcher>,
     ) -> Self {
         ProcessExecutor {
             configuration,
@@ -45,8 +46,10 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
     pub(crate) fn start(&self) -> Option<String> {
         let configuration = self.configuration.clone();
         let (sender, receiver) = mpsc::channel();
-        let mut pid = self.run_process(sender.clone());
+        let mut pid: Option<pid_t> = None;
+        self.run_process(sender.clone());
         self.watch_file(sender.clone());
+        let mut is_waiting_process_exiting = false;
 
         debug!("Wait events");
         loop {
@@ -54,32 +57,20 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
             match event {
                 Event::BinaryChanged => {
                     info!("Binary file changed, kill sub command");
-                    unsafe {
-                        kill(pid, SIGTERM);
-                    }
-                    loop {
-                        let event = receiver.recv().unwrap();
-                        match event {
-                            Event::BinaryChanged => {
-                                debug!("Binary file changed again");
-                                // Just waiting again
-                            }
-                            Event::ProcessExited(_) => {
-                                info!("Process finally exited, start a new one...");
-                                pid = self.run_process(sender.clone());
-                                break;
-                            }
-                            Event::TimeElapse => {
-                                info!("Time elapsed");
-                                // Nothing to do, we still need to wait for the end of the process
-                            }
-                            Event::Error(err) => {
-                                return Some(err);
-                            }
+                    match pid {
+                        None => {}
+                        Some(p) => unsafe {
+                            is_waiting_process_exiting = true;
+                            kill(p, SIGTERM);
+                            pid = None;
                         }
                     }
                 }
                 Event::ProcessExited(exit_status) => {
+                    if is_waiting_process_exiting {
+                        self.run_process(sender.clone());
+                        continue
+                    }
                     let duration = configuration
                         .restart_delay
                         .unwrap_or_else(|| DEFAULT_RELOAD_DELAY);
@@ -92,32 +83,39 @@ impl<T: Watch + 'static> ProcessExecutor<T> {
                     spawn(move || {
                         debug!("Wait {:?}", duration);
                         sleep(duration);
-                        sender.send(Event::TimeElapse).expect("Send event failed!");
+                        sender.send(Event::DelayBeforeRestartElapsed).expect("Send event failed!");
                     });
                 }
-                Event::TimeElapse => {
+                Event::DelayBeforeRestartElapsed => {
                     info!("Time elapsed");
-                    pid = self.run_process(sender.clone());
+                    self.run_process(sender.clone());
                 }
                 Event::Error(err) => {
                     return Some(err);
                 }
+                Event::ProcessStarted(v) => pid = Some(v),
             }
         }
     }
 
-    fn run_process(&self, sender: Sender<Event>) -> pid_t {
+    fn run_process(&self, sender: Sender<Event>) {
         let args = self.configuration.args.clone().unwrap_or_default();
         let path = self.configuration.path.clone();
-        let mut child = Command::new(&path).args(args).spawn().unwrap();
-        let ret = child.id();
         info!("Start new process");
-        spawn(move || {
-            sender
-                .send(Event::ProcessExited(child.wait().unwrap()))
-                .expect("Send event failed!");
-        });
-        ret as pid_t
+        let child = Command::new(&path).args(args).spawn();
+        match child {
+            Ok(mut v) => {
+                sender
+                    .send(Event::ProcessStarted(v.id() as pid_t))
+                    .expect("Send event failed!");
+                spawn(move || {
+                    sender
+                        .send(Event::ProcessExited(v.wait().unwrap()))
+                        .expect("Send event failed!");
+                });
+            },
+            Err(err) => debug!("unable to watch file: {}", err.to_string())
+        };
     }
 
     fn watch_file(&self, sender: Sender<Event>) {
