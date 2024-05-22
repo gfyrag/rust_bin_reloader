@@ -5,7 +5,7 @@ use std::thread::{sleep, spawn};
 use std::time::Duration;
 
 use libc::{kill, pid_t, SIGTERM};
-use log::{debug, info};
+use log::{debug, error, info};
 
 use crate::file_watcher::{FileWatcher};
 
@@ -26,7 +26,6 @@ pub struct ProcessExecutor {
 #[derive(Debug)]
 enum Event {
     BinaryChanged,
-    ProcessStarted(pid_t),
     ProcessExited(ExitStatus),
     DelayBeforeRestartElapsed,
     Error(String),
@@ -58,7 +57,7 @@ impl ProcessExecutor {
                 Event::BinaryChanged => {
                     info!("Binary file changed");
                     match pid {
-                        None => self.run_process(sender.clone()),
+                        None => pid = self.run_process(sender.clone()),
                         Some(p) => unsafe {
                             info!("Killing process: {}", p);
                             is_waiting_process_exiting = true;
@@ -90,37 +89,35 @@ impl ProcessExecutor {
                 }
                 Event::DelayBeforeRestartElapsed => {
                     info!("Time elapsed");
-                    self.run_process(sender.clone());
+                    pid = self.run_process(sender.clone());
                 }
                 Event::Error(err) => {
                     return Some(err);
                 }
-                Event::ProcessStarted(v) => {
-                    info!("Process started with PID: {}", v);
-                    pid = Some(v)
-                },
             }
         }
     }
 
-    fn run_process(&self, sender: Sender<Event>) {
+    fn run_process(&self, sender: Sender<Event>) -> Option<pid_t> {
         let args = self.configuration.args.clone().unwrap_or_default();
         let path = self.configuration.path.clone();
         info!("Start new process");
         let child = Command::new(&path).args(args).spawn();
         match child {
             Ok(mut v) => {
-                sender
-                    .send(Event::ProcessStarted(v.id() as pid_t))
-                    .expect("Send event failed!");
+                let id = v.id().clone();
                 spawn(move || {
                     sender
                         .send(Event::ProcessExited(v.wait().unwrap()))
                         .expect("Send event failed!");
                 });
+                Some(id as pid_t)
             },
-            Err(err) => debug!("unable to watch file: {}", err.to_string())
-        };
+            Err(err) => {
+                error!("unable to start process: {}", err);
+                None
+            },
+        }
     }
 
     fn watch_file(&self, sender: Sender<Event>) {
