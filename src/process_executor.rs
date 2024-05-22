@@ -56,10 +56,11 @@ impl ProcessExecutor {
             let event = receiver.recv().unwrap();
             match event {
                 Event::BinaryChanged => {
-                    info!("Binary file changed, kill sub command");
+                    info!("Binary file changed");
                     match pid {
-                        None => {}
+                        None => self.run_process(sender.clone()),
                         Some(p) => unsafe {
+                            info!("Killing process: {}", p);
                             is_waiting_process_exiting = true;
                             kill(p, SIGTERM);
                             pid = None;
@@ -68,6 +69,7 @@ impl ProcessExecutor {
                 }
                 Event::ProcessExited(exit_status) => {
                     if is_waiting_process_exiting {
+                        info!("Process exited as expected, start a new one");
                         self.run_process(sender.clone());
                         continue
                     }
@@ -93,7 +95,10 @@ impl ProcessExecutor {
                 Event::Error(err) => {
                     return Some(err);
                 }
-                Event::ProcessStarted(v) => pid = Some(v),
+                Event::ProcessStarted(v) => {
+                    info!("Process started with PID: {}", v);
+                    pid = Some(v)
+                },
             }
         }
     }
@@ -131,7 +136,6 @@ impl ProcessExecutor {
                         Ok(_) => {}
                         Err(err) => panic!("{}", err.to_string()),
                     }
-                    info!("Detect binary changed");
                     sender
                         .send(Event::BinaryChanged)
                         .expect("Send event failed!");
